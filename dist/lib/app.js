@@ -31,7 +31,8 @@ class App {
             return;
         }
         // Build URL:  {wsUrl}/books?search={query}
-        const url = makeQueryUrl(`${this.wsUrl}/books`, { search: query });
+        const url = makeQueryUrl(`${this.wsUrl}/api/books`, { search: query });
+        console.log(`Searching for books with URL: ${url}`);
         await this.loadSearchResults(url);
     }
     // TODO: call ws.findBooksByUrl and render results
@@ -59,17 +60,22 @@ class App {
             // When user clicks "details..." show that book's details
             detailsLink.addEventListener('click', (evt) => {
                 evt.preventDefault();
-                this.showBookDetails(item.links.self.href);
+                // Convert relative href to absolute URL using wsUrl as base
+                const absoluteUrl = new URL(item.links.self.href, this.wsUrl).href;
+                this.showBookDetails(absoluteUrl);
             });
             li.append(titleSpan, detailsLink);
             ul.append(li);
         }
-        const navDiv = makeElement('div', { id: 'search-nav' });
+        const navDiv = makeElement('div', { id: 'search-nav', class: 'scroll' });
+        const beginScroll = makeElement('div', { class: 'scroll' });
         if (env.links.prev) {
             const prevLink = makeElement('a', { href: '#', rel: 'prev', class: 'scroll-prev' }, '« prev');
             prevLink.addEventListener('click', (evt) => {
                 evt.preventDefault();
-                this.loadSearchResults(env.links.prev.href);
+                // Convert relative href to absolute URL using wsUrl as base
+                const absoluteUrl = new URL(env.links.prev.href, this.wsUrl).href;
+                this.loadSearchResults(absoluteUrl);
             });
             navDiv.append(prevLink);
         }
@@ -77,7 +83,9 @@ class App {
             const nextLink = makeElement('a', { href: '#', rel: 'next', class: 'scroll-next' }, 'next »');
             nextLink.addEventListener('click', (evt) => {
                 evt.preventDefault();
-                this.loadSearchResults(env.links.next.href);
+                // Convert relative href to absolute URL using wsUrl as base
+                const absoluteUrl = new URL(env.links.next.href, this.wsUrl).href;
+                this.loadSearchResults(absoluteUrl);
             });
             navDiv.append(nextLink);
         }
@@ -88,6 +96,7 @@ class App {
         this.clearErrors();
         this.result.innerHTML = '';
         const result = await this.ws.getBookByUrl(selfUrl);
+        console.log(`Book details result: `, result);
         const env = this.unwrap(result);
         if (!env) {
             return;
@@ -172,10 +181,12 @@ class App {
         }
         borrowersDd.textContent = 'Loading...';
         const result = await this.ws.getLends(isbn);
-        const lends = this.unwrap(result);
-        if (!lends) {
+        const envelope = this.unwrap(result);
+        if (!envelope) {
             return;
         }
+        // Extract the actual lends array from the envelope
+        const lends = Array.isArray(envelope) ? envelope : envelope.result;
         if (lends.length === 0) {
             borrowersDd.textContent = 'None';
             return;
