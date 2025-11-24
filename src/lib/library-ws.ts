@@ -26,7 +26,6 @@ export class LibraryWs {
   async getBookByUrl(bookUrl: URL|string)
     : Promise<Errors.Result<SuccessEnvelope<Lib.XBook>>>
   {
-    console.log(`Getting book by URL: ${bookUrl}`);
     const result = await getEnvelope<Lib.XBook, SuccessEnvelope<Lib.XBook>>(bookUrl);
     return result;
   }
@@ -45,7 +44,6 @@ export class LibraryWs {
   //make a PUT request to /lendings
   async checkoutBook(lend: Lib.Lend) : Promise<Errors.Result<void>> {
     try{
-      console.log(`url is ${this.url}/api/lendings`);
        const result = await fetch(`${this.url}/api/lendings`, {
       method: 'PUT',
       headers: {
@@ -81,7 +79,37 @@ export class LibraryWs {
   /** return book specified by lend */
   //make a DELETE request to /lendings
   async returnBook(lend: Lib.Lend) : Promise<Errors.Result<void>> {
-    return Errors.errResult('TODO');
+    try{
+      console.log(`url is ${this.url}/api/lendings`);
+       const result = await fetch(`${this.url}/api/lendings`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(lend)
+    });
+    if (!result.ok){
+      // Try to parse an error envelope; if parsing fails return a generic error
+      try {
+        const text = await result.text();
+        if (text && text.length > 0) {
+          const response = JSON.parse(text) as ErrorEnvelope;
+          return new Errors.ErrResult(response.errors as Errors.Err[]);
+        }
+        return Errors.errResult(`DELETE ${this.url}/api/lendings: ${result.status} ${result.statusText}`);
+      }
+      catch (err) {
+        console.error('Error parsing error response', err);
+        return Errors.errResult(`DELETE ${this.url}/api/lendings: ${result.status} ${result.statusText}`);
+      }
+    }
+    else {
+      return Errors.VOID_RESULT;
+    }
+  } catch (err) {
+    console.error(err);
+    return Errors.errResult(`DELETE ${this.url}/api/lendings: error ${err}`);
+  }
   }
 
   /** return Lend[] of all lendings for isbn. */
@@ -90,7 +118,6 @@ export class LibraryWs {
   async getLends(isbn: string) : Promise<Errors.Result<Lib.Lend[]>> {
     //doing a GET to /api/lendings with query parameters set to { findBy: 'isbn', isbn }
     try{
-      console.log(`url is ${this.url}/api/lendings/?`);
        const result = await fetch(`${this.url}/api/lendings/?findBy=isbn&isbn=${isbn}`, {
       method: 'GET',
       headers: {
